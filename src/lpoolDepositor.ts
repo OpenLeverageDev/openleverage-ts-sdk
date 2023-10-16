@@ -1,8 +1,9 @@
-import {Contract, ethers, JsonRpcProvider} from "ethers";
+import {Contract, ethers, JsonRpcProvider, Wallet} from "ethers";
 
 interface LPoolDepositorSDKConfig {
     provider: JsonRpcProvider;
     contractAddress: string;
+    signer: Wallet;
 }
 
 export class LPoolDepositor {
@@ -13,29 +14,18 @@ export class LPoolDepositor {
             config.contractAddress,
             [
                 "function deposit(address pool, uint amount) external",
-                "function transferToPool(address from, uint amount) external",
                 "function depositNative(address payable pool) external payable",
-            ]
+            ],
+            config.signer // Pass the signer to the Contract
         );
     }
 
-    async deposit(poolAddress: string, amount: number): Promise<void> {
+    async deposit(poolAddress: string, amount: bigint): Promise<void> {
         try {
-            const tx = await this.contract.deposit(poolAddress, ethers.parseUnits(amount.toString(), 18));
+            const tx = await this.contract.deposit(poolAddress, amount);
             await tx.wait();
         } catch (error) {
             console.error("Failed to deposit", error);
-        }
-    }
-
-    // This function should be called only internally or carefully,
-    // as it's intended to be used as a callback
-    async transferToPool(fromAddress: string, amount: number): Promise<void> {
-        try {
-            const tx = await this.contract.transferToPool(fromAddress, ethers.parseUnits(amount.toString(), 18));
-            await tx.wait();
-        } catch (error) {
-            console.error("Failed to transfer to pool", error);
         }
     }
 

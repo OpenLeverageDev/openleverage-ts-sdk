@@ -1,7 +1,7 @@
 {
   "name": "@openleverage/sdk",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "description": "⚒️ An SDK for building applications on top of OpenLeverage",
   "main": "dist/index.js",
@@ -20,8 +20,7 @@
   "scripts": {
     "build": "tsdx build",
     "start": "tsdx watch",
-    "test": "tsdx test",
-    "prepublishOnly": "tsdx build"
+    "test": "tsdx test"
   },
   "dependencies": {
     "@ethersproject/address": "^5.0.2",
@@ -29,6 +28,7 @@
     "decimal.js-light": "^2.5.0",
     "ethers": "^6.8.0",
     "jsbi": "^3.1.4",
+    "node-fetch": "^3.3.2",
     "tiny-invariant": "^1.1.0",
     "toformat": "^2.0.0"
   },
