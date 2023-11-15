@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import { Chain, chainInfos } from "../data/chains";
 import { Trade } from "../trade";
 import { TradeInfo } from "../data/dataTypes";
-import { logger } from "../utils";
+import {logger, toBN} from "../utils";
 import { MarginTrade } from "../marginTrade";
 import { Abi } from "../abi";
 import { privateKey } from "./config";
@@ -67,7 +67,7 @@ if(tradePreviewRes) {
         tradeInfo.depositTokenAddress == pair.token0Address?pair.token0Decimal:pair.token1Decimal))
     await approveTx.wait()
 
-    const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, dexInfo.minBuyAmount, tradePreviewRes.borrowing, dexInfo.dexCallData)
+    const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, dexInfo.minBuyAmount, tradePreviewRes.borrowing, tradePreviewRes.dex, toBN(dexInfo.swapTotalAmountInWei),dexInfo.dexCallData)
     await marginTradeTx.wait()
   }else{
     logger.error('get trade dex information err')

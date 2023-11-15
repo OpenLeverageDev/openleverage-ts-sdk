@@ -185,15 +185,15 @@ export class TradeRouter {
     const swapFees = swapTotalAmount.multipliedBy(swapFeesRate).dividedBy(10000)
     const token0PriceOfToken1 = await this.getTokenQuotePrice(pair.token0Address, pair.token1Address,
       pair.token0Decimal, pair.token1Decimal, currentDex)
-
+    const swapTotalAmountInWei =  swapTotalAmount.multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ?
+    pair.token1Decimal : pair.token0Decimal)).toFixed(0)
     const isUniClass = isUniV2(currentDex)
     let actualBuyAmountWei = toBN(0)
     if (isUniClass) {
-      actualBuyAmountWei = await this.V2quoter.calBuyAmount(tradeInfo.buyToken, tradeInfo.sellToken, buyFees, sellFees, swapTotalAmount.multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ?
-        pair.token1Decimal : pair.token0Decimal)).toFixed(0), dexCallData)
+      actualBuyAmountWei = await this.V2quoter.calBuyAmount(tradeInfo.buyToken, tradeInfo.sellToken, buyFees, sellFees, swapTotalAmountInWei, dexCallData)
     } else {
       actualBuyAmountWei = await this.V3Quoter.quoteExactInputSingle(tradeInfo.sellToken, tradeInfo.buyToken, dexNames2Fee(currentDex, this.chain).toString(),
-        swapTotalAmount.multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal)).toFixed(0), 0)
+          swapTotalAmountInWei, 0)
     }
 
     const actualBuyAmount = actualBuyAmountWei.dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
@@ -221,7 +221,8 @@ export class TradeRouter {
       minBuyAmount: minBuyAmount.toString(),
       liquidationPrice: liquidationPrice.toString(),
       priceImpact: priceImpact.toString(),
-      dexCallData: dexCallData
+      dexCallData: dexCallData,
+      swapTotalAmountInWei
     }
   }
 
@@ -343,6 +344,7 @@ export class TradeRouter {
         minBuyAmount: minBuyAmount.toString(),
         finalBackUsd: preview1InchRes.finalBackUsd,
         toTokenAmountInWei: preview1InchRes.toTokenAmountInWei,
+        swapTotalAmountInWei: swapTotalAmountInWei.toString(),
         gasUsd
       }
       return result

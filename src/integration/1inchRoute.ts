@@ -79,16 +79,17 @@ export class OneInchRoute {
   }
 
 
-  async get1InchSwap(tradeInfo: TradeInfo, swapAmount: BigNumber, oplAddress: string) {
+  async get1InchSwap(tradeInfo: TradeInfo, swapAmountInWei: BigNumber, oplAddress: string) {
     try {
 
       const provider = getDefaultProvider(this.rpc)
       const feeData = await provider.getFeeData();
       const gasPrice = feeData.gasPrice ? formatUnits(feeData.gasPrice, "gwei") : 0
-
+      // http://localhost:4040/1inch/56/swap?src=0xe9e7cea3dedca5984780bafc599bd69add087d56&dst=0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c&amount=12274191109857183827&
+      // from=0x6a75ac4b8d8e76d15502e69be4cb6325422833b4&slippage=1&disableEstimate=true&gasPrice=3000000000
       const queryParams = `src=${encodeURIComponent(tradeInfo.sellToken)}&` +
           `dst=${encodeURIComponent(tradeInfo.buyToken)}&` +
-          `amount=${encodeURIComponent(swapAmount.integerValue(1).toFixed())}&` +
+          `amount=${encodeURIComponent(swapAmountInWei.integerValue(1).toFixed())}&` +
           `from=${encodeURIComponent(oplAddress)}&` +
           `slippage=${encodeURIComponent(toBN(tradeInfo.slippage).multipliedBy(100).toString())}&` +
           `disableEstimate=true&` +

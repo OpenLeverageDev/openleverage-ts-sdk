@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import { Chain, chainInfos } from "../data/chains";
 import { Trade } from "../trade";
 import { TradeInfo } from "../data/dataTypes";
-import { logger } from "../utils";
+import {logger, toBN} from "../utils";
 import { MarginTrade } from "../marginTrade";
 import { privateKey } from "./config";
 
@@ -52,19 +52,19 @@ if(tradePreviewRes) {
     signer
   })
 
-  const pancakeInfo = tradePreviewRes.dexQuoteResultMap.get('3') // trade on pancake
-  if(pancakeInfo && pancakeInfo.dexCallData){
-    const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, pancakeInfo.minBuyAmount, tradePreviewRes.borrowing, pancakeInfo.dexCallData)
-    await marginTradeTx.wait()
-  }else{
-    logger.error('get pancakeInfo dex information err')
-  }
+  // const pancakeInfo = tradePreviewRes.dexQuoteResultMap.get('3') // trade on pancake
+  // if(pancakeInfo && pancakeInfo.dexCallData){
+  //   const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, pancakeInfo.minBuyAmount, tradePreviewRes.borrowing,tradePreviewRes.dex, pancakeInfo.dexCallData)
+  //   await marginTradeTx.wait()
+  // }else{
+  //   logger.error('get pancakeInfo dex information err')
+  // }
 
-    // const oneInchInfo = tradePreviewRes.dexQuoteResultMap.get('21')
-    // if(oneInchInfo && oneInchInfo.dexCallData){
-    //     const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, oneInchInfo.minBuyAmount, tradePreviewRes.borrowing, oneInchInfo.dexCallData)
-    //     await marginTradeTx.wait()
-    // }else{
-    //     logger.error('get pancakeInfo dex information err')
-    // }
+    const oneInchInfo = tradePreviewRes.dexQuoteResultMap.get('21')
+    if(oneInchInfo && oneInchInfo.dexCallData){
+        const marginTradeTx = await marginTradeHelper.openTrade(pair, tradeInfo, oneInchInfo.minBuyAmount, tradePreviewRes.borrowing, oneInchInfo.dexCallData, toBN(oneInchInfo.swapTotalAmountInWei))
+        await marginTradeTx.wait()
+    }else{
+        logger.error('get pancakeInfo dex information err')
+    }
 }

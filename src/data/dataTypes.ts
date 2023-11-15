@@ -97,6 +97,7 @@ export type OptimalResult = {
 }
 
 export type tradeQuoteResult = {
+  swapTotalAmountInWei: string;
   dex: string
   token0PriceOfToken1: string
   swapFeesRate: string

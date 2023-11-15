@@ -272,4 +272,8 @@ export class TradeCalculator {
     return await this.oplContract.taxes(marketId, tokenAddress, index)
   }
 
+
+  async getOneInchSwap(tradeInfo: TradeInfo, swapAmount: BigNumber, oplAddress: string) {
+    return await this.tradeRouter.getOneInchSwap(tradeInfo, swapAmount, oplAddress)
+  }
 }

@@ -1,7 +1,7 @@
 import { Contract, Wallet } from "ethers"
 import BigNumber from 'bignumber.js'
 import { Pair, TradeInfo } from "./data/dataTypes"
-import { Chain, ChainAddresses, chainInfos } from "./data/chains"
+import {Chain, ChainAddresses, chainInfos, oneInch} from "./data/chains"
 import {dexHexDataFormat, logger, dexNames2Hex, toBN} from "./utils"
 import { TradeCalculator } from "./tradeCalculator"
 // @ts-ignore
@@ -40,8 +40,17 @@ export class MarginTrade {
     })
   }
 
-  async openTrade(pair: Pair, tradeInfo: TradeInfo, minBuyAmount: string, borrowing: string, dexCallData: string) {
+  async openTrade(pair: Pair, tradeInfo: TradeInfo, minBuyAmount: string, borrowing: string, dex: string, swapTotalAmountInWei: BigNumber,dexCallData?: string ) {
     // check margin trade with native token
+    if(dex === oneInch){
+      // swap on 1inch
+        const oneInchSwapRes = await this.calculator.getOneInchSwap(tradeInfo, swapTotalAmountInWei, this.chainAddresses.oplAddress)
+        dexCallData = oneInchSwapRes.contractData
+    }
+
+    if(!dexCallData){
+      throw new Error('get dex contract data error')
+    }
     const minBuyAmountEther = toBN(minBuyAmount).multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal)).toFixed(0)
     const depositEther =  toBN(tradeInfo.depositAmount).multipliedBy(toBN(10).pow(tradeInfo.depositToken == 0 ? pair.token0Decimal : pair.token1Decimal)).toFixed(0)
     const borrowingEther = toBN(borrowing).multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal)).toFixed(0)
