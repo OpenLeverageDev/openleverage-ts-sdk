@@ -39,6 +39,7 @@
   "devDependencies": {
     "@types/big.js": "^4.0.5",
     "@types/jest": "^29.5.8",
+    "prettier": "3.1.0",
     "tsdx": "^0.14.1"
   },
   "engines": {

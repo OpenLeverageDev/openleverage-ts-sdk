@@ -1,4 +1,4 @@
-import BigNumber from "bignumber.js"
+import BigNumber from 'bignumber.js'
 export type OneInchQuoteParam = {
   src: string
   dst: string
@@ -8,17 +8,15 @@ export type OneInchQuoteParam = {
   includeTokensInfo: boolean
 }
 
-
 export type OneInchSwapParam = {
   src: string
   dst: string
   amount: number
   from: string
   slippage: number
-  disableEstimate: boolean,
+  disableEstimate: boolean
   gasPrice: string
 }
-
 
 export type Pair = {
   marketId: number
@@ -78,7 +76,7 @@ export type TradeInfo = {
   isClose: boolean
   depositTokenAddress: string
 }
-// margin trade 
+// margin trade
 // tradeInfo.longToken == 0 ? pair.token0Address : pair.token1Address
 // tradeInfo.longToken == 0 ? pair.token1Address : pair.token0Address
 
@@ -97,7 +95,7 @@ export type OptimalResult = {
 }
 
 export type tradeQuoteResult = {
-  swapTotalAmountInWei: string;
+  swapTotalAmountInWei: string
   dex: string
   token0PriceOfToken1: string
   swapFeesRate: string
@@ -139,7 +137,6 @@ export type oneInchQuoteToken = {
   tags: string[]
 }
 
-
 export type oneInchQuoteInfo = {
   fromToken: oneInchQuoteToken
   toToken: oneInchQuoteToken
@@ -153,17 +150,16 @@ export type oneInchSwapInfo = {
   toAmount: string
 }
 
-
 type oneInchSwapInfoTx = {
   data: string
 }
 export interface DexInfo {
-  name: string;
-  link: string;
-  factory: string;
-  fees?: number;
-  dexData?: string;
-  isV3?: boolean;
+  name: string
+  link: string
+  factory: string
+  fees?: number
+  dexData?: string
+  isV3?: boolean
 }
 export type PositionInfo = {
   held: string
@@ -173,5 +169,5 @@ export type PositionInfo = {
   marginLimit: string
 }
 export interface DexMap {
-  [key: string]: DexInfo;
+  [key: string]: DexInfo
 }
