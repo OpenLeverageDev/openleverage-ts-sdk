@@ -1,6 +1,7 @@
 import BigNumber from "bignumber.js";
 import { Contract, ethers, Wallet } from "ethers";
 import { toBN } from "../utils";
+// @ts-ignore
 import V3ABIJSON from "../ABI/Quoter.json"
 interface QuoterConfig {
   contractAddress: string;

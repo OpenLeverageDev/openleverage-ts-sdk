@@ -25,7 +25,6 @@ export class OneInchRoute {
     const result = {
       protocols: [],
       shouldUpdatePrice: false,
-      token0PriceOfToken1: '',
       swapFees: 0,
       gasFees: '',
       gasUsd: toBN(0),
@@ -38,21 +37,17 @@ export class OneInchRoute {
       finalBackUsd: toBN(0)
     }
     try {
+      const queryParams = `src=${encodeURIComponent(tradeInfo.sellToken)}&`+
+          `dst=${encodeURIComponent(tradeInfo.buyToken)}&`+
+          `amount=${encodeURIComponent(swapTotalAmountInWei.integerValue(1).toFixed())}&`+
+          `includeProtocols=true&includeGas=true&includeTokensInfo=true`;
 
-      const queryParams = new URLSearchParams({
-        src: tradeInfo.sellToken,
-        dst: tradeInfo.buyToken,
-        amount: swapTotalAmountInWei.toString(),
-        includeProtocols: 'true',
-        includeGas: 'true',
-        includeTokensInfo: 'true'
-      })
-      const urlWithParams = `${this.quoteUrl}?${queryParams.toString()}`
-      const response = await fetch(urlWithParams)
+      const response = await fetch( `${this.quoteUrl}?${queryParams}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       const data: oneInchQuoteInfo = await response.json()
+      logger.info("one inch response ==== ", data)
       result.toTokenAmountInWei = toBN(data.toAmount)
       let toTokenAmount = toBN(data.toAmount).dividedBy(Math.pow(10, tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
       result.toTokenAmount = toTokenAmount
@@ -84,23 +79,22 @@ export class OneInchRoute {
   }
 
 
-  async get1InchSwap(tradeInfo: TradeInfo, swapAmount: number, oplAddress: string) {
+  async get1InchSwap(tradeInfo: TradeInfo, swapAmount: BigNumber, oplAddress: string) {
     try {
 
       const provider = getDefaultProvider(this.rpc)
       const feeData = await provider.getFeeData();
       const gasPrice = feeData.gasPrice ? formatUnits(feeData.gasPrice, "gwei") : 0
 
-      const queryParams = new URLSearchParams({
-        src: tradeInfo.sellToken,
-        dst: tradeInfo.buyToken,
-        amount: swapAmount.toString(),
-        from: oplAddress,
-        slippage: toBN(tradeInfo.slippage).multipliedBy(100).toString(),
-        disableEstimate: 'true',
-        gasPrice: gasPrice.toString()
-      })
-      const urlWithParams = `${this.swapUrl}?${queryParams.toString()}`
+      const queryParams = `src=${encodeURIComponent(tradeInfo.sellToken)}&` +
+          `dst=${encodeURIComponent(tradeInfo.buyToken)}&` +
+          `amount=${encodeURIComponent(swapAmount.integerValue(1).toFixed())}&` +
+          `from=${encodeURIComponent(oplAddress)}&` +
+          `slippage=${encodeURIComponent(toBN(tradeInfo.slippage).multipliedBy(100).toString())}&` +
+          `disableEstimate=true&` +
+          `gasPrice=${encodeURIComponent(gasPrice.toString())}`;
+
+      const urlWithParams = `${this.swapUrl}?${queryParams}`;
       const response = await fetch(urlWithParams)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

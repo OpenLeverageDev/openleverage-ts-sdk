@@ -65,7 +65,8 @@ export class TradeCalculator {
     const availableForBorrow = await lPoolContract.availableForBorrow()
 
     const borrowInterest = toBN(borrowRatePerBlock.toString()).multipliedBy(toBN(this.blocksPerYear)).multipliedBy(toBN(100))
-
+    logger.info('get pool borrowRatePerBlock from contract', borrowRatePerBlock)
+    logger.info('get pool availableForBorrow from contract', availableForBorrow)
     return {
       borrowingAvailable: toBN(availableForBorrow.toString()).dividedBy(toBN(10).pow(decimal)).toString(),
       borrowInterest: formatEther(borrowInterest.toString())
@@ -77,6 +78,7 @@ export class TradeCalculator {
       return null
     }
     const market = await this.oplContract.markets(marketId)
+    logger.info('get market from contract', market)
     return {
       marginLimit: toBN(market.marginLimit).toString(),
       leverFeesRate: toBN(market.feesRate).toString(),
@@ -226,7 +228,6 @@ export class TradeCalculator {
     for (const [dex, dexQuoteRes] of dexQuoteMap) {
       if (dex !== oneInch) {
         const priceCAvgPriceHAvgPrice = await this.getCAvgPriceNHAvgPrice(pair, tradeInfo, dexQuoteRes)
-        logger.info("priceCAvgPriceHAvgPrice ====", priceCAvgPriceHAvgPrice)
 
         const marketValueC = toBN(dexQuoteRes.held).multipliedBy(priceCAvgPriceHAvgPrice.cAvgPrice).dividedBy(toBN(10).pow(priceCAvgPriceHAvgPrice.decimals));
         dexQuoteRes.shouldUpdatePrice = marketValueC.minus(borrowToTradeRes.borrowing).multipliedBy(10000).dividedBy(borrowToTradeRes.borrowing).lt(marketInfo.marginLimit);
@@ -250,7 +251,6 @@ export class TradeCalculator {
   }
 
   async getCAvgPriceNHAvgPrice(pair: Pair, tradeInfo: TradeInfo, dexQuoteRes: tradeQuoteResult) {
-    logger.info(this.chainAddress.oplAddress, pair.marketId, tradeInfo.buyToken, tradeInfo.sellToken, this.tWap, dexQuoteRes.dexCallData)
     const priceCAvgPriceHAvgPrice = await this.queryHelperContract.calPriceCAvgPriceHAvgPrice
         .staticCall(this.chainAddress.oplAddress, pair.marketId, tradeInfo.buyToken, tradeInfo.sellToken, this.tWap, dexQuoteRes.dexCallData);
     const cAvgPrice = toBN(priceCAvgPriceHAvgPrice[1]).toString(10);

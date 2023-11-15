@@ -75,7 +75,8 @@ export class TradeRouter {
 
     if (dexList.indexOf(oneInch) !== -1) {
       // 1inch support
-      const oneInchQuoteResult = await this.getOneInchQuote(pair, tradeInfo, swapTotalAmount, borrowToTradeRes.discountLeverFees, slippageBN)
+      const swapTotalAmountInWei = swapTotalAmount.multipliedBy(toBN(10).pow(tradeInfo.longToken == 0?pair.token1Decimal:pair.token0Decimal))
+      const oneInchQuoteResult = await this.getOneInchQuote(pair, tradeInfo, swapTotalAmountInWei, borrowToTradeRes.discountLeverFees, slippageBN)
       // comparedTo held usd val
       const dexHeldUsd = optimalRouter.held.multipliedBy(tradeInfo.longToken == 0 ? toBN(pair.token0Usd) : toBN(pair.token1Usd))
       let oneInchHeldUsd = oneInchQuoteResult.finalBackUsd
@@ -86,6 +87,7 @@ export class TradeRouter {
         oneInchQuoteResult.overChangeAmount = toBN(oneInchQuoteResult.held).minus(optimalRouter.held).toString()
         oneInchQuoteResult.overChangeAddr = tradeInfo.longToken == 0 ? pair.token0Address : pair.token1Address
         oneInchQuoteResult.overChangeDex = optimalRouter.dex
+        optimalRouter.dex = oneInch
       }
       routerResults.set(oneInch, oneInchQuoteResult)
     }
@@ -334,7 +336,7 @@ export class TradeRouter {
       // minBuyAmount calculate
       const result: tradeQuoteResult = {
         dex: '21',
-        token0PriceOfToken1: preview1InchRes.token0PriceOfToken1.toString(),
+        token0PriceOfToken1: toBN(1).dividedBy(preview1InchRes.token0toToken1Price).toString(),
         swapFeesRate: preview1InchRes.swapFeesRate.toString(),
         swapFees: preview1InchRes.swapFees.toString(),
         held: held.toString(),
@@ -350,7 +352,7 @@ export class TradeRouter {
     }
   }
 
-  async getOneInchSwap(tradeInfo: TradeInfo, swapAmount: number, oplAddress: string) {
+  async getOneInchSwap(tradeInfo: TradeInfo, swapAmount: BigNumber, oplAddress: string) {
     return await this.OneInchQuoter.get1InchSwap(tradeInfo, swapAmount, oplAddress)
   }
 

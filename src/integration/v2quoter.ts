@@ -1,9 +1,12 @@
 import BigNumber from "bignumber.js";
 import { Contract, ethers, Wallet, ZeroAddress } from "ethers";
-import { defaultDexName, dexNames2Hex, logger, toBN } from "../utils";
+import { defaultDexName, dexNames2Hex, toBN } from "../utils";
 import { Pair } from "../data/dataTypes";
+// @ts-ignore
 import v2DexAgg from "../ABI/DexAggregatorV1.json"
+// @ts-ignore
 import v2UniFactory from "../ABI/IUniswapV2Factory.json"
+// @ts-ignore
 import v2UniPair from "../ABI/UniswapV2Pair.json"
 import { Abi } from "../abi";
 
