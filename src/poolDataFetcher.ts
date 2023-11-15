@@ -1,3 +1,4 @@
+import { logger } from "./utils";
 
 export interface PoolDataFetcher {
   poolName: string;
@@ -38,7 +39,7 @@ export class PoolDataFetcher {
       }
       return await response.json();
     } catch (error) {
-      console.error(`Fetch error: ${error}`);
+      logger.error(`Fetch error: ${error}`);
       throw error;
     }
   }

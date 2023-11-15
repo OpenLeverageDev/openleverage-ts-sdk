@@ -1,6 +1,7 @@
-import {ethers} from "ethers";
-import {LPoolDepositor} from "../lpoolDepositor";
-import {chainInfos} from "../chains";
+import { ethers } from "ethers";
+import { LPoolDepositor } from "../lpoolDepositor";
+import { chainInfos } from "../data/chains";
+import { Abi } from "../abi";
 
 // Example of depositing ERC20 tokens
 
@@ -14,11 +15,11 @@ const wallet = new ethers.Wallet(PRIVATE_KEY);
 
 // Connect the wallet to the provider
 const signer = wallet.connect(provider);
-const lpoolDepositor = new LPoolDepositor({provider, signer, contractAddress: chain.addresses.lpoolDepositor});
+const lpoolDepositor = new LPoolDepositor({ signer, contractAddress: chain.addresses.lpoolDepositor });
 const usdcAddress = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d";
 
 const erc20Abi = [
-    "function approve(address spender, uint256 amount) public returns (bool)"
+    Abi.erc20Approve
 ];
 
 const usdcContract = new ethers.Contract(usdcAddress, erc20Abi, signer);

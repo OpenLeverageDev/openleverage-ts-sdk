@@ -1,7 +1,8 @@
-import {Contract, ethers, JsonRpcProvider, Wallet} from "ethers";
+import { Contract, ethers, Wallet } from "ethers";
+import { logger } from "./utils";
+import { Abi } from "./abi";
 
 interface LPoolConfig {
-    provider: JsonRpcProvider;
     contractAddress: string;
     signer: Wallet;
 }
@@ -13,8 +14,7 @@ export class LPool {
         this.contract = new ethers.Contract(
             config.contractAddress,
             [
-                "function redeem(uint redeemTokens) external",
-                "function balanceOf(address owner) external view returns (uint256)"
+                Abi.redeem, Abi.poolBalanceOf, Abi.borrowBalanceStored, Abi.availableForBorrow, Abi.borrowRatePerBlock
             ],
             config.signer // Pass the signer to the Contract
         );
@@ -25,11 +25,23 @@ export class LPool {
             const tx = await this.contract.redeem(ltokenAmount);
             await tx.wait();
         } catch (error) {
-            console.error("Failed to deposit", error);
+            logger.error("Failed to deposit", error);
         }
     }
 
     async balanceOf(owner: string): Promise<bigint> {
         return this.contract.balanceOf(owner);
+    }
+
+    async borrowRatePerBlock(): Promise<bigint> {
+        return await this.contract.borrowRatePerBlock();
+    }
+
+    async availableForBorrow(): Promise<bigint> {
+        return await this.contract.availableForBorrow();
+    }
+
+    async borrowBalanceStored(owner: string): Promise<bigint> {
+        return await this.contract.borrowBalanceStored(owner);
     }
 }

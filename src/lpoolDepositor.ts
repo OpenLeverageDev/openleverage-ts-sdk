@@ -1,7 +1,8 @@
-import {Contract, ethers, JsonRpcProvider, Wallet} from "ethers";
+import { Contract, ethers, Wallet } from "ethers";
+import { logger } from "./utils.js";
+import { Abi } from "./abi.js";
 
 interface LPoolDepositorSDKConfig {
-    provider: JsonRpcProvider;
     contractAddress: string;
     signer: Wallet;
 }
@@ -13,8 +14,7 @@ export class LPoolDepositor {
         this.contract = new ethers.Contract(
             config.contractAddress,
             [
-                "function deposit(address pool, uint amount) external",
-                "function depositNative(address payable pool) external payable",
+                Abi.deposit, Abi.depositNative
             ],
             config.signer // Pass the signer to the Contract
         );
@@ -25,7 +25,7 @@ export class LPoolDepositor {
             const tx = await this.contract.deposit(poolAddress, amount);
             await tx.wait();
         } catch (error) {
-            console.error("Failed to deposit", error);
+            logger.error("Failed to deposit", error);
         }
     }
 
@@ -36,7 +36,7 @@ export class LPoolDepositor {
             });
             await tx.wait();
         } catch (error) {
-            console.error("Failed to deposit native token", error);
+            logger.error("Failed to deposit native token", error);
         }
     }
 }
