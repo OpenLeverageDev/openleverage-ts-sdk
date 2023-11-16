@@ -5,9 +5,10 @@ import {
   MarketInfo,
   Pair,
   PoolInfo,
-  PositionInfo,
+  OnChainPosition,
   TradeInfo,
   tradeQuoteResult,
+  OffChainPositionDetail,
 } from './data/dataTypes'
 import { Chain, ChainAddresses, chainInfos, feeRatePrecision, oneInch, updatePriceDiscount } from './data/chains'
 import { dexNames2Name, isUniV2, logger, toBN } from './utils'
@@ -27,7 +28,6 @@ interface TradeCalculatorConfig {
 export class TradeCalculator {
   private oplContract: Contract
   private signer: Wallet
-  private chain: Chain
   private blocksPerYear: number
   private tradeRouter: TradeRouter
   private queryHelperContract: Contract
@@ -39,7 +39,6 @@ export class TradeCalculator {
     this.chainAddress = chainInfos[config.chain].addresses
     this.tWap = chainInfos[config.chain].twap
     this.blocksPerYear = chainInfos[config.chain].blocksPerYear
-    this.chain = config.chain
 
     this.queryHelperContract = new Contract(this.chainAddress.queryHelperAddress, QueryJson.abi, config.signer)
 
@@ -178,12 +177,16 @@ export class TradeCalculator {
     return feesRate.multipliedBy(toBN(100).minus(updatePriceDiscount).dividedBy(toBN(100))).toString() // discount 25%=>25
   }
 
-  async calculatePosition(pair: Pair, tradeInfo: TradeInfo, positionDtail: PositionInfo) {
-    const poolAddress = tradeInfo.longToken === 0 ? pair.pool1Address : pair.pool0Address
+  async calculatePosition(
+    pair: Pair,
+    offChainPositionDetail: OffChainPositionDetail,
+    onChainPosition: OnChainPosition,
+  ) {
+    const poolAddress = offChainPositionDetail.longToken === 0 ? pair.pool1Address : pair.pool0Address
     const lPool = new LPool({ contractAddress: poolAddress, signer: this.signer })
 
-    const marginRatio = toBN(positionDtail.marginRatio).div(100)
-    const marginLimit = toBN(positionDtail.marginLimit).div(100)
+    const marginRatio = toBN(onChainPosition.marginRatio).div(100)
+    const marginLimit = toBN(onChainPosition.marginLimit).div(100)
     const currentPrice = await this.tradeRouter.getTokenQuotePrice(
       pair.token0Address,
       pair.token1Address,
@@ -191,27 +194,30 @@ export class TradeCalculator {
       pair.token1Decimal,
       pair.dexData,
     )
-    const deposited = toBN(positionDtail.deposited).div(
-      toBN(10).pow(tradeInfo.depositToken === 0 ? pair.token0Decimal : pair.token1Decimal),
+    const deposited = toBN(onChainPosition.deposited).div(
+      toBN(10).pow(offChainPositionDetail.depositToken === 0 ? pair.token0Decimal : pair.token1Decimal),
     )
-    const share = toBN(positionDtail.held).div(
-      toBN(10).pow(tradeInfo.longToken === 0 ? pair.token0Decimal : pair.token1Decimal),
+    const share = toBN(onChainPosition.held).div(
+      toBN(10).pow(offChainPositionDetail.longToken === 0 ? pair.token0Decimal : pair.token1Decimal),
     )
-    const heldToken = tradeInfo.longToken === 0 ? pair.token0Address : pair.token1Address
-    const heldDecimal = tradeInfo.longToken === 0 ? pair.token0Decimal : pair.token1Decimal
+
+    const heldToken = offChainPositionDetail.longToken === 0 ? pair.token0Address : pair.token1Address
+    const heldDecimal = offChainPositionDetail.longToken === 0 ? pair.token0Decimal : pair.token1Decimal
 
     let held = await this.shareToAmount(share, heldToken, heldDecimal)
-    let borrowedCurrent = toBN(positionDtail.borrowed).div(
-      toBN(10).pow(tradeInfo.longToken === 0 ? pair.token1Decimal : pair.token0Decimal),
+
+    let borrowedCurrent = toBN(onChainPosition.borrowed).div(
+      toBN(10).pow(offChainPositionDetail.longToken === 0 ? pair.token1Decimal : pair.token0Decimal),
     )
-    let borrowedStored = toBN((await lPool.borrowBalanceStored(this.signer.address)).toString()).div(
-      toBN(10).pow(tradeInfo.longToken === 0 ? pair.token1Decimal : pair.token0Decimal),
+    const poolBorrowBalanceStored = await lPool.borrowBalanceStored(this.signer.address)
+    let borrowedStored = toBN(poolBorrowBalanceStored.toString()).div(
+      toBN(10).pow(offChainPositionDetail.longToken === 0 ? pair.token1Decimal : pair.token0Decimal),
     )
 
     let pnlValue, openPrice, liquidationPrice
-    pnlValue = this.calculatePnlValue(tradeInfo, currentPrice, held, deposited, borrowedCurrent)
-    openPrice = this.calculateOpenPrice(tradeInfo, held, deposited, borrowedStored)
-    liquidationPrice = this.calculateLiquidationPrice(tradeInfo, marginLimit, borrowedCurrent, held)
+    pnlValue = this.calculatePnlValue(offChainPositionDetail, currentPrice, held, deposited, borrowedCurrent)
+    openPrice = this.calculateOpenPrice(offChainPositionDetail, held, deposited, borrowedStored)
+    liquidationPrice = this.calculateLiquidationPrice(offChainPositionDetail, marginLimit, borrowedCurrent, held)
 
     const pnlPercent = pnlValue.multipliedBy(100).dividedBy(deposited).dp(2)
     return {
@@ -223,7 +229,7 @@ export class TradeCalculator {
       held,
       share,
       deposited,
-      depositToken: tradeInfo.depositToken,
+      depositToken: offChainPositionDetail.depositToken,
       openPrice,
       liquidationPrice,
       priceDex: dexNames2Name(pair.dexData),
@@ -232,52 +238,62 @@ export class TradeCalculator {
 
   // Helper functions for calculations
   calculatePnlValue(
-    tradeInfo: TradeInfo,
+    OffChainPositionDetail: OffChainPositionDetail,
     currentPrice: BigNumber,
     held: BigNumber,
     deposited: BigNumber,
     borrowedCurrent: BigNumber,
   ) {
-    if (tradeInfo.longToken === 0) {
-      return tradeInfo.depositToken === 0
+    if (OffChainPositionDetail.longToken === 0) {
+      return OffChainPositionDetail.depositToken === 0
         ? held.minus(deposited).minus(borrowedCurrent.div(currentPrice))
         : held.multipliedBy(currentPrice).minus(deposited).minus(borrowedCurrent)
     } else {
-      return tradeInfo.depositToken === 0
+      return OffChainPositionDetail.depositToken === 0
         ? held.div(currentPrice).minus(deposited).minus(borrowedCurrent)
         : held.minus(deposited).minus(borrowedCurrent.multipliedBy(currentPrice))
     }
   }
 
-  calculateOpenPrice(tradeInfo: TradeInfo, held: BigNumber, deposited: BigNumber, borrowedStored: BigNumber) {
-    if (tradeInfo.longToken === 0) {
-      return tradeInfo.depositToken === 0
+  calculateOpenPrice(
+    offChainPositionDetail: OffChainPositionDetail,
+    held: BigNumber,
+    deposited: BigNumber,
+    borrowedStored: BigNumber,
+  ) {
+    if (offChainPositionDetail.longToken === 0) {
+      return offChainPositionDetail.depositToken === 0
         ? borrowedStored.div(held.minus(deposited))
         : deposited.plus(borrowedStored).div(held)
     } else {
-      return tradeInfo.depositToken === 0
+      return offChainPositionDetail.depositToken === 0
         ? held.div(deposited.plus(borrowedStored))
         : held.minus(deposited).div(borrowedStored)
     }
   }
 
-  calculateLiquidationPrice(tradeInfo: TradeInfo, marginLimit: BigNumber, borrowedCurrent: BigNumber, held: BigNumber) {
+  calculateLiquidationPrice(
+    offChainPositionDetail: OffChainPositionDetail,
+    marginLimit: BigNumber,
+    borrowedCurrent: BigNumber,
+    held: BigNumber,
+  ) {
     const liquidationMultiplier = toBN(1).plus(marginLimit.div(toBN(100)))
-    return tradeInfo.longToken === 0
+    return offChainPositionDetail.longToken === 0
       ? liquidationMultiplier.multipliedBy(borrowedCurrent).div(held)
       : held.div(liquidationMultiplier.multipliedBy(borrowedCurrent))
   }
 
   async shareToAmount(share: BigNumber, heldToken: string, heldDecimal: number) {
-    const token = new Token(heldToken, this.chain, this.signer)
-    const totalBalance = await token.balanceOf()
+    const token = new Token(heldToken, this.signer)
+    const totalBalance = await token.balanceOf(this.chainAddress.oplAddress)
     const totalHeld = await this.oplContract.totalHelds(heldToken)
     return totalBalance.multipliedBy(share).dividedBy(toBN(totalHeld)).dp(heldDecimal)
   }
 
   async amountToShare(held: BigNumber, heldToken: string, heldDecimal: number) {
-    const token = new Token(heldToken, this.chain, this.signer)
-    const totalBalance = await token.balanceOf()
+    const token = new Token(heldToken, this.signer)
+    const totalBalance = await token.balanceOf(this.chainAddress.oplAddress)
     const totalHeld = await this.oplContract.totalHelds(heldToken)
     return toBN(totalHeld).multipliedBy(held).dividedBy(totalBalance).dp(heldDecimal)
   }

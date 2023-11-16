@@ -1,8 +1,8 @@
 import { Contract, Wallet } from 'ethers'
 import BigNumber from 'bignumber.js'
-import { Pair, TradeInfo } from './data/dataTypes'
+import { OffChainPosition, OffChainPositionDetail, Pair, TradeInfo } from './data/dataTypes'
 import { Chain, ChainAddresses, chainInfos, oneInch } from './data/chains'
-import { dexHexDataFormat, logger, dexNames2Hex, toBN } from './utils'
+import { dexHexDataFormat, dexNames2Hex, logger, toBN } from './utils'
 import { TradeCalculator } from './tradeCalculator'
 // @ts-ignore
 import OplAbiJson from './ABI/OpenLevV1.json'
@@ -20,6 +20,7 @@ export class MarginTrade {
   private readonly queryHelperContract: Contract
   private readonly chainAddresses: ChainAddresses
   private readonly calculator: TradeCalculator
+  private readonly positionListUrl: string
 
   constructor(config: MarginTradeConfig) {
     this.chainAddresses = chainInfos[config.chain].addresses
@@ -31,6 +32,7 @@ export class MarginTrade {
       chain: config.chain,
       signer: config.signer,
     })
+    this.positionListUrl = chainInfos[config.chain].positionListUrl
   }
 
   async openTrade(
@@ -105,21 +107,37 @@ export class MarginTrade {
     )
   }
 
-  async getPosition(pair: Pair, tradeInfo: TradeInfo) {
-    const positionDtail = await this.getTraderPositons(pair, tradeInfo)
-    logger.info('positionDtail=', positionDtail)
-    const caclulatePositionResult = await this.calculator.calculatePosition(pair, tradeInfo, positionDtail)
-    return caclulatePositionResult
+  async getPositionList(marketId: number) {
+    const queryParams = `?marketId=${marketId}&account=${this.signer.address}&size=10&page=1`
+    const response = await fetch(`${this.positionListUrl}?${queryParams}`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data: OffChainPosition = await response.json()
+    return data.data
   }
 
-  async getTraderPositons(pair: Pair, tradeInfo: TradeInfo) {
-    return await this.queryHelperContract.getTraderPositons(
+  async getPosition(pair: Pair, OffChainPositionDetail: OffChainPositionDetail) {
+    const position = await this.getTraderPositions(pair, OffChainPositionDetail)
+    return await this.calculator.calculatePosition(pair, OffChainPositionDetail, position)
+  }
+
+  async getTraderPositions(pair: Pair, OffChainPositionDetail: OffChainPositionDetail) {
+    const traderPositions = await this.queryHelperContract.getTraderPositons(
       this.chainAddresses.oplAddress,
       pair.marketId,
       [this.signer],
-      [tradeInfo.longToken],
+      [OffChainPositionDetail.longToken],
       dexHexDataFormat(dexNames2Hex(pair.dexData)),
     )
+    const traderPosition = traderPositions[0]
+    return {
+      deposited: traderPosition[0],
+      held: traderPosition[1],
+      borrowed: traderPosition[2],
+      marginRatio: traderPosition[3],
+      marginLimit: traderPosition[4],
+    }
   }
 
   async updatePrice(pair: Pair) {

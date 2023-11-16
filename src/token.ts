@@ -1,29 +1,20 @@
-import { Contract, Wallet, getDefaultProvider } from 'ethers'
-import { Chain, chainInfos } from './data/chains'
-import { Abi } from './abi'
-import { toBN } from './utils'
+import { Contract, Wallet } from 'ethers'
+import { logger, toBN } from './utils'
+// @ts-ignore
+import erc20AbiJson from './ABI/ERC20.json'
 
 export class Token {
-  private chain: Chain
   private readonly tokenConrtact: Contract
-  private readonly signer: Wallet
-  private isNative: boolean
+  private address: string
 
-  constructor(address: string, chain: Chain, signer: Wallet) {
-    this.chain = chain
-    this.signer = signer
-    this.tokenConrtact = new Contract(address, [Abi.balanceOf], signer)
-    this.isNative = address.toLowerCase() === chainInfos[this.chain].addresses.nativeToken
+  constructor(address: string, signer: Wallet) {
+    this.tokenConrtact = new Contract(address, erc20AbiJson.abi, signer)
+    this.address = address
   }
 
-  async balanceOf() {
-    let balance = ''
-    if (this.isNative !== true) {
-      balance = await this.tokenConrtact.balanceOf(this.signer.address)
-      return toBN(balance)
-    }
-    const provider = getDefaultProvider(chainInfos[this.chain].rpc)
-    balance = (await provider.getBalance(this.signer.address)).toString()
+  async balanceOf(addr: string) {
+    let balance = await this.tokenConrtact.balanceOf.staticCall(addr)
+    logger.info(`balance of ${this.address} == ${balance}`)
     return toBN(balance)
   }
 }

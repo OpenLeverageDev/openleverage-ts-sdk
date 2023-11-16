@@ -161,7 +161,7 @@ export interface DexInfo {
   dexData?: string
   isV3?: boolean
 }
-export type PositionInfo = {
+export type OnChainPosition = {
   held: string
   borrowed: string
   deposited: string
@@ -170,4 +170,43 @@ export type PositionInfo = {
 }
 export interface DexMap {
   [key: string]: DexInfo
+}
+
+export type OffChainPosition = {
+  page: number
+  size: number
+  total: number
+  totalPage: number
+  data: OffChainPositionDetail[]
+}
+
+export type OffChainPositionDetail = {
+  id: string
+  marketId: number
+  token0Symbol: string
+  token1Symbol: string
+  token0Decimals: number
+  token1Decimals: number
+  token0Usd: number
+  token1Usd: number
+  longToken: number
+  lever: number
+  token0Icon: string
+  token1Icon: string
+  deposit: string
+  token0: string
+  token1: string
+  pool0: string
+  pool1: string
+  side: string
+  depositTokenName: string
+  depositToken: number
+  trader: string
+  createdTime: string
+  dexNames: string
+  dexPairs: string
+  inTradingActivity: boolean
+  activityType: number[]
+  frontLabels: string[]
+  dailyInterestRate: number
 }

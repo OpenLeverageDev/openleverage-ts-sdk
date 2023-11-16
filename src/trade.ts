@@ -1,7 +1,7 @@
 import { Chain } from './data/chains'
 import { TradeCalculator } from './tradeCalculator'
 import { Wallet } from 'ethers'
-import { Pair, TradeInfo, TradePreviewResult, CloseTradePreviewResult, PositionInfo } from './data/dataTypes'
+import { Pair, TradeInfo, TradePreviewResult, CloseTradePreviewResult, OnChainPosition } from './data/dataTypes'
 import { isUniV2, toBN, logger } from './utils'
 import { TradeRouter } from './tradeRouter'
 
@@ -92,7 +92,7 @@ export class Trade {
   async closeTradePreview(
     pair: Pair,
     tradeInfo: TradeInfo,
-    positionInfo: PositionInfo,
+    positionInfo: OnChainPosition,
   ): Promise<CloseTradePreviewResult | null> {
     let closeRatio = toBN(1)
     if (toBN(tradeInfo.closeAmount!).comparedTo(toBN(positionInfo.held)) != 0) {

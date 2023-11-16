@@ -5,25 +5,25 @@ import { V3Quoter } from './integration/v3quoter'
 import { OneInchRoute } from './integration/1inchRoute'
 import { Chain, chainInfos, feeRatePrecision, oneInch } from './data/chains'
 import {
-  isUniV2,
-  dexHexDataFormat,
-  dexNames2Hex,
-  dexNames2Fee,
-  logger,
-  toBN,
-  toAmountBeforeTax,
-  matchDexInformation,
   defaultDexName,
+  dexHexDataFormat,
+  dexNames2Fee,
+  dexNames2Hex,
+  isUniV2,
+  logger,
+  matchDexInformation,
+  toAmountBeforeTax,
+  toBN,
 } from './utils'
 import {
   BorrowToTradeResult,
-  MarketInfo,
-  Pair,
-  tradeQuoteResult,
-  TradeInfo,
-  OptimalResult,
   closeTradeQuoteResult,
-  PositionInfo,
+  MarketInfo,
+  OptimalResult,
+  Pair,
+  OnChainPosition,
+  TradeInfo,
+  tradeQuoteResult,
 } from './data/dataTypes'
 
 interface TradeRouterConfig {
@@ -149,7 +149,7 @@ export class TradeRouter {
     buyFees: number,
     txFees: number,
     discountLeverFees: BigNumber,
-    positionInfo: PositionInfo,
+    positionInfo: OnChainPosition,
     repayAmount: BigNumber,
   ) {
     const dexList = pair.dexData.split(',')
@@ -352,7 +352,7 @@ export class TradeRouter {
     swapTotalInWei: BigNumber,
     sellFees: number,
     buyFees: number,
-    positionInfo: PositionInfo,
+    positionInfo: OnChainPosition,
     closeRatio: BigNumber,
     txFees: number,
   ): Promise<closeTradeQuoteResult> {
@@ -488,7 +488,7 @@ export class TradeRouter {
   async checkUniV2LiqLimit(pair: Pair, sellToken: string, borrowIng: BigNumber, poolAddress: string) {
     const dexInfo = matchDexInformation(defaultDexName(pair.dexData), this.chain)
     if (dexInfo?.factory) {
-      this.V2quoter.checkUniV2LiqLimit(pair, sellToken, borrowIng, poolAddress, dexInfo.factory)
+      await this.V2quoter.checkUniV2LiqLimit(pair, sellToken, borrowIng, poolAddress, dexInfo.factory)
     }
   }
 
@@ -532,7 +532,7 @@ export class TradeRouter {
           : preview1InchRes.toTokenAmount.plus(toBN(tradeInfo.depositAmount!).minus(discountLeverFees))
       const minBuyAmount = preview1InchRes.toTokenAmount.multipliedBy(toBN(1).minus(slippageBN))
       // minBuyAmount calculate
-      const result: tradeQuoteResult = {
+      return {
         dex: '21',
         token0PriceOfToken1: toBN(1).dividedBy(preview1InchRes.token0toToken1Price).toString(),
         swapFeesRate: preview1InchRes.swapFeesRate.toString(),
@@ -544,7 +544,6 @@ export class TradeRouter {
         swapTotalAmountInWei: swapTotalAmountInWei.toString(),
         gasUsd,
       }
-      return result
     } catch (e) {
       logger.error('get one inch quote price error', e)
       throw new Error('get one inch quote price error')

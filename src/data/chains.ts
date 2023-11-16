@@ -40,6 +40,7 @@ type ChainInfo = {
   nativeTokenDecimal: number
   usdtDecimal: number
   twap: number
+  positionListUrl: string
 }
 
 const MAINNET_ADDRESSES: ChainAddresses = {
@@ -82,6 +83,7 @@ export const chainInfos: { [key in Chain]: ChainInfo } = {
     oneInchQuoteUrl: 'https://ethereum.openleverage.finance/api/1inch/1/quote',
     oneInchSwapUrl: 'https://ethereum.openleverage.finance/api/1inch/1/swap',
     pairInfoUrl: 'https://ethereum.openleverage.finance/api/trade/pairs',
+    positionListUrl: 'https://ethereum.openleverage.finance/api//position/opens',
     blocksPerYear: 2102400,
     nativeTokenDecimal: 18,
     usdtDecimal: 18,
@@ -96,6 +98,7 @@ export const chainInfos: { [key in Chain]: ChainInfo } = {
     oneInchQuoteUrl: 'https://bnb.openleverage.finance/api/1inch/56/quote',
     oneInchSwapUrl: 'https://bnb.openleverage.finance/api/1inch/56/swap',
     pairInfoUrl: 'https://bnb.openleverage.finance/api/trade/pairs',
+    positionListUrl: 'https://bnb.openleverage.finance/api//position/opens',
     blocksPerYear: 10512000,
     nativeTokenDecimal: 18,
     usdtDecimal: 18,
@@ -110,6 +113,7 @@ export const chainInfos: { [key in Chain]: ChainInfo } = {
     oneInchQuoteUrl: 'https://arbitrum.openleverage.finance/api/1inch/42161/quote',
     oneInchSwapUrl: 'https://arbitrum.openleverage.finance/api/1inch/42161/swap',
     pairInfoUrl: 'https://arbitrum.openleverage.finance/api/trade/pairs',
+    positionListUrl: 'https://arbitrum.openleverage.finance/api//position/opens',
     blocksPerYear: 2628000,
     nativeTokenDecimal: 18,
     usdtDecimal: 18,

@@ -1,5 +1,5 @@
 import { formatUnits, getDefaultProvider } from 'ethers'
-import { Pair, TradeInfo, oneInchQuoteInfo, oneInchSwapInfo } from '../data/dataTypes'
+import { oneInchQuoteInfo, oneInchSwapInfo, Pair, TradeInfo } from '../data/dataTypes'
 import { logger, toBN } from '../utils'
 import { defaultDexGasFee, oneInch } from '../data/chains'
 import BigNumber from 'bignumber.js'
@@ -89,18 +89,16 @@ export class OneInchRoute {
         .multipliedBy(toBN(gasPrice))
         .dividedBy(Math.pow(10, 18))
         .multipliedBy(gasUsd)
-      const finalBackUsd = leverTotalAmount.minus(estimatedGasUsd)
-      result.finalBackUsd = finalBackUsd
+      result.finalBackUsd = leverTotalAmount.minus(estimatedGasUsd)
 
       result.leverTotalAmount = leverTotalAmount
       const toTokenAmountVal = toBN(data.toAmount).dividedBy(Math.pow(10, data.toToken.decimals))
       const fromTokenAmountVal = swapTotalAmountInWei.dividedBy(Math.pow(10, data.fromToken.decimals))
 
-      const token0toToken1Price =
+      result.token0toToken1Price =
         tradeInfo.longToken == 0
           ? toTokenAmountVal.dividedBy(fromTokenAmountVal)
           : fromTokenAmountVal.dividedBy(toTokenAmountVal)
-      result.token0toToken1Price = token0toToken1Price
       return result
     } catch (error) {
       logger.error('preview 1Inch router error ==================', error)
@@ -143,7 +141,7 @@ export class OneInchRoute {
         toTokenAmount: toBN(data.toAmount),
       }
     } catch (err) {
-      throw new Error('get 1Inch contract data faild')
+      throw new Error('get 1Inch contract data failed')
     }
   }
 }
