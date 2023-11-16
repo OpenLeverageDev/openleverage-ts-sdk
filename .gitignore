@@ -3,3 +3,4 @@ node_modules
 /.idea/
 /build/
 /src/examples/config.ts
+.DS_Store
