@@ -120,13 +120,13 @@ export class MarginTrade {
       dexCallData,
     )
 
-    return await this.oplContract.closeTrade(
-      pair.marketId,
-      offPositionDetail.longToken,
-      closeHeld,
-      minOrMaxAmount.toFixed(0),
-      dexCallData,
-    )
+    // return await this.oplContract.closeTrade(
+    //   pair.marketId,
+    //   offPositionDetail.longToken,
+    //   closeHeld,
+    //   minOrMaxAmount.toFixed(0),
+    //   dexCallData,
+    // )
   }
 
   async getPositionList(marketId: number) {

@@ -56,7 +56,7 @@ if (positionList && positionList.length > 0) {
     firstPosition,
   )
   if (closeTradePreviewRes) {
-    const closeTradeQuoteResult = closeTradePreviewRes.dexQuoteResultMap.get(closeTradePreviewRes.dex)
+    const closeTradeQuoteResult = closeTradePreviewRes.dexQuoteResultMap.get('21' || closeTradePreviewRes.dex)
     if (closeTradeQuoteResult) {
       logger.info('closeTradeQuoteResult == ', closeTradeQuoteResult)
       const closeReturns = closeTradeQuoteResult.closeReturns.multipliedBy(
