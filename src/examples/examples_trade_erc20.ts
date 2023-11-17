@@ -38,9 +38,7 @@ const tradeInfo: TradeInfo = {
   depositToken: 0,
   buyToken: '0xa865197a84e780957422237b5d152772654341f3',
   sellToken: '0xe9e7cea3dedca5984780bafc599bd69add087d56',
-  isClose: false,
   depositAmount: '10',
-  closeAmount: '',
   depositTokenAddress: '0xa865197a84e780957422237b5d152772654341f3',
 }
 

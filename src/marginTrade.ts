@@ -1,6 +1,6 @@
 import { Contract, Wallet } from 'ethers'
 import BigNumber from 'bignumber.js'
-import { OffChainPosition, OffChainPositionDetail, Pair, TradeInfo } from './data/dataTypes'
+import { CloseTradeInfo, OffChainPosition, OffChainPositionDetail, Pair, TradeInfo } from './data/dataTypes'
 import { Chain, ChainAddresses, chainInfos, oneInch } from './data/chains'
 import { dexHexDataFormat, dexNames2Hex, logger, toBN } from './utils'
 import { TradeCalculator } from './tradeCalculator'
@@ -93,14 +93,36 @@ export class MarginTrade {
 
   async closeTrade(
     pair: Pair,
-    tradeInfo: TradeInfo,
-    closeHeld: string,
+    closeTradeInfo: CloseTradeInfo,
+    offPositionDetail: OffChainPositionDetail,
+    held: BigNumber,
+    share: BigNumber,
     minOrMaxAmount: BigNumber,
     dexCallData: string,
   ) {
+    let closeRatio = toBN(1)
+    let closeShare = share
+    if (toBN(closeTradeInfo.closeAmount).comparedTo(held) !== 0) {
+      closeRatio = toBN(closeTradeInfo.closeAmount).dividedBy(held)
+      if (closeRatio.comparedTo(toBN(0.9999)) > 0) {
+        closeRatio = toBN(1)
+      }
+      closeShare = share.multipliedBy(closeRatio)
+    }
+    let decimal = offPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal
+    let closeHeld = closeShare.multipliedBy(toBN(10).pow(decimal)).toFixed(0)
+    logger.info(
+      'close trade params = ',
+      pair.marketId,
+      closeHeld,
+      offPositionDetail.longToken,
+      minOrMaxAmount.toFixed(0),
+      dexCallData,
+    )
+
     return await this.oplContract.closeTrade(
       pair.marketId,
-      tradeInfo.longToken,
+      offPositionDetail.longToken,
       closeHeld,
       minOrMaxAmount.toFixed(0),
       dexCallData,

@@ -24,6 +24,8 @@ import {
   OnChainPosition,
   TradeInfo,
   tradeQuoteResult,
+  OffChainPositionDetail,
+  CloseTradeInfo,
 } from './data/dataTypes'
 
 interface TradeRouterConfig {
@@ -142,15 +144,17 @@ export class TradeRouter {
 
   async getOptimalCloseTradeRouter(
     pair: Pair,
-    tradeInfo: TradeInfo,
     swapTotalInWei: BigNumber,
     closeRatio: BigNumber,
     sellFees: number,
     buyFees: number,
     txFees: number,
-    discountLeverFees: BigNumber,
-    positionInfo: OnChainPosition,
+    onChainPosition: OnChainPosition,
+    offChainPositionDetail: OffChainPositionDetail,
     repayAmount: BigNumber,
+    buyToken: string,
+    sellToken: string,
+    closeTradeInfo: CloseTradeInfo,
   ) {
     const dexList = pair.dexData.split(',')
 
@@ -164,13 +168,15 @@ export class TradeRouter {
         const dexQuoteResult = await this.getCloseTradeDefaultDexQuote(
           pair,
           currentDex,
-          tradeInfo,
           swapTotalInWei,
           sellFees,
           buyFees,
-          positionInfo,
+          onChainPosition,
+          offChainPositionDetail,
           closeRatio,
           txFees,
+          buyToken,
+          sellToken,
         )
         routerResults.set(currentDex, dexQuoteResult)
         if (dexQuoteResult.closeReturns.comparedTo(optimalRouter.closeReturns) > 0) {
@@ -182,61 +188,66 @@ export class TradeRouter {
 
     if (dexList.indexOf(oneInch) !== -1) {
       try {
-        let slippageBN = toBN(tradeInfo.slippage).gt(toBN(1)) ? toBN(1) : toBN(tradeInfo.slippage)
+        let slippageBN = toBN(closeTradeInfo.slippage).gt(toBN(1)) ? toBN(1) : toBN(closeTradeInfo.slippage)
         slippageBN = slippageBN.lt(toBN(0.005)) ? toBN(0.005) : slippageBN
-
-        const oneInchQuoteResult = await this.getOneInchQuote(
+        const oneInchQuoteResult = await this.getOneInchQuoteToClose(
           pair,
-          tradeInfo,
           swapTotalInWei,
-          discountLeverFees,
-          slippageBN,
+          buyToken,
+          sellToken,
+          offChainPositionDetail.longToken,
         )
-        const returnsAmount = oneInchQuoteResult
-          .toTokenAmountInWei!.minus(repayAmount)
-          .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
+        logger.info('oneInchQuoteResult', oneInchQuoteResult)
+        const returnsAmount = oneInchQuoteResult.toTokenAmountInWei
+          .minus(repayAmount)
+          .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
         let oneInchCloseReturns = toBN(0)
-        if (tradeInfo.longToken == 0) {
+        if (offChainPositionDetail.longToken == 0) {
           oneInchCloseReturns =
-            tradeInfo.depositToken == tradeInfo.longToken
+            offChainPositionDetail.depositToken == offChainPositionDetail.longToken
               ? returnsAmount.dividedBy(oneInchQuoteResult.token0PriceOfToken1)
               : returnsAmount
         } else {
           oneInchCloseReturns =
-            tradeInfo.depositToken == tradeInfo.longToken
+            offChainPositionDetail.depositToken == offChainPositionDetail.longToken
               ? returnsAmount.multipliedBy(oneInchQuoteResult.token0PriceOfToken1)
               : returnsAmount
         }
 
         const minBuyAmount = oneInchQuoteResult
           .toTokenAmountInWei!.dividedBy(
-            Math.pow(10, tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+            Math.pow(10, offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
           )
           .multipliedBy(toBN(1).minus(slippageBN))
         const closeReturnsUsd = optimalRouter.closeReturns.multipliedBy(
-          tradeInfo.depositToken == 0 ? pair.token0Usd : pair.token1Usd,
+          offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd,
         )
         const oneInchCloseReturnsUsd = oneInchCloseReturns
-          .multipliedBy(tradeInfo.depositToken == 0 ? pair.token0Usd : pair.token1Usd)
+          .multipliedBy(offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd)
           .minus(oneInchQuoteResult.gasUsd!)
+        logger.info('oneInchCloseReturnsUsd', closeReturnsUsd, oneInchCloseReturnsUsd)
         // compared closeReturn usd val
-
-        if (
-          oneInchCloseReturns.comparedTo(optimalRouter.closeReturns) > 0 &&
-          oneInchCloseReturnsUsd.comparedTo(closeReturnsUsd) > 0
-        ) {
-          oneInchQuoteResult.overChangeAmount = oneInchCloseReturns.minus(optimalRouter.closeReturns).toString()
-          oneInchQuoteResult.overChangeAddr = tradeInfo.depositToken == 0 ? pair.token0Address : pair.token1Address
-          oneInchQuoteResult.overChangeDex = optimalRouter.dex
-        }
-        routerResults.set(oneInch, {
+        const result = {
           closeReturns: oneInchCloseReturns,
           dex: oneInch,
           token0PriceOfToken1: oneInchQuoteResult.token0PriceOfToken1,
           swapFeesRate: oneInchQuoteResult.swapFeesRate.toString(),
           swapFees: oneInchQuoteResult.swapFees.toString(),
           minBuyAmount: minBuyAmount.toString(),
-        })
+          overChangeAmount: '',
+          overChangeAddr: '',
+          overChangeDex: '',
+          dexCallData: '',
+        }
+        if (
+          oneInchCloseReturns.comparedTo(optimalRouter.closeReturns) > 0 &&
+          oneInchCloseReturnsUsd.comparedTo(closeReturnsUsd) > 0
+        ) {
+          result.overChangeAmount = oneInchCloseReturns.minus(optimalRouter.closeReturns).toString()
+          result.overChangeAddr = offChainPositionDetail.depositToken == 0 ? pair.token0Address : pair.token1Address
+          result.overChangeDex = optimalRouter.dex
+        }
+        routerResults.set(oneInch, result)
       } catch (err) {
         logger.error('get 1inch closeTrade preview quote data error == ', err)
       }
@@ -348,13 +359,15 @@ export class TradeRouter {
   async getCloseTradeDefaultDexQuote(
     pair: Pair,
     currentDex: string,
-    tradeInfo: TradeInfo,
     swapTotalInWei: BigNumber,
     sellFees: number,
     buyFees: number,
-    positionInfo: OnChainPosition,
+    onChainPosition: OnChainPosition,
+    offChainPositionDetail: OffChainPositionDetail,
     closeRatio: BigNumber,
     txFees: number,
+    buyToken: string,
+    sellToken: string,
   ): Promise<closeTradeQuoteResult> {
     const dexCallData = dexHexDataFormat(dexNames2Hex(currentDex))
     const swapFeesRate = toBN(dexNames2Fee(currentDex, this.chain)).dividedBy(toBN(100))
@@ -364,22 +377,22 @@ export class TradeRouter {
       pair.token1Address,
       pair.token0Decimal,
       pair.token1Decimal,
-      dexCallData,
+      currentDex,
     )
-    const repayAmount = toBN(positionInfo.borrowed).multipliedBy(closeRatio)
+    const repayAmount = toBN(onChainPosition.borrowed).multipliedBy(closeRatio)
     const isUniClass = isUniV2(currentDex)
 
     let closeReturns = toBN(0)
     let actualPrice = toBN(0)
     let priceImpact = toBN(0)
 
-    if (tradeInfo.longToken !== tradeInfo.depositToken) {
+    if (offChainPositionDetail.longToken !== offChainPositionDetail.depositToken) {
       //max sell
       swapFees = swapTotalInWei.multipliedBy(swapFeesRate).dividedBy(10000)
       if (isUniClass) {
         closeReturns = await this.V2quoter.calBuyAmount(
-          tradeInfo.buyToken,
-          tradeInfo.sellToken,
+          buyToken,
+          sellToken,
           buyFees,
           sellFees,
           swapTotalInWei.toFixed(0),
@@ -387,8 +400,8 @@ export class TradeRouter {
         )
       } else {
         closeReturns = await this.V3Quoter.quoteExactInputSingle(
-          tradeInfo.sellToken,
-          tradeInfo.buyToken,
+          sellToken,
+          buyToken,
           dexNames2Fee(currentDex, this.chain).toString(),
           swapTotalInWei.toFixed(0),
           0,
@@ -396,20 +409,22 @@ export class TradeRouter {
       }
 
       actualPrice =
-        tradeInfo.longToken == 0
+        offChainPositionDetail.longToken == 0
           ? closeReturns
-              .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
+              .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
               .dividedBy(
                 swapTotalInWei
                   .minus(swapFees)
-                  .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal)),
+                  .dividedBy(
+                    toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+                  ),
               )
           : swapTotalInWei
               .minus(swapFees)
-              .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
+              .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
               .dividedBy(
                 closeReturns.dividedBy(
-                  toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
+                  toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
                 ),
               )
 
@@ -422,24 +437,17 @@ export class TradeRouter {
 
       closeReturns = closeReturns.minus(repayAmount)
       closeReturns = closeReturns.dividedBy(
-        toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
+        toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
       )
     } else {
       //min buy
       const needRepay = toAmountBeforeTax(repayAmount, txFees).toFixed(0)
       if (isUniClass) {
-        closeReturns = await this.V2quoter.calSellAmount(
-          tradeInfo.buyToken,
-          tradeInfo.sellToken,
-          buyFees,
-          sellFees,
-          needRepay,
-          dexCallData,
-        )
+        closeReturns = await this.V2quoter.calSellAmount(buyToken, sellToken, buyFees, sellFees, needRepay, dexCallData)
       } else {
         closeReturns = await this.V3Quoter.quoteExactOutputSingle(
-          tradeInfo.sellToken,
-          tradeInfo.buyToken,
+          sellToken,
+          buyToken,
           dexNames2Fee(currentDex, this.chain).toString(),
           needRepay,
           0,
@@ -447,20 +455,22 @@ export class TradeRouter {
       }
       swapFees = closeReturns.multipliedBy(swapFeesRate).dividedBy(toBN(10000))
       actualPrice =
-        tradeInfo.longToken == 0
+        offChainPositionDetail.longToken == 0
           ? toBN(needRepay)
-              .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
+              .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
               .dividedBy(
                 closeReturns
                   .minus(swapFees)
-                  .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal)),
+                  .dividedBy(
+                    toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+                  ),
               )
           : closeReturns
               .minus(swapFees)
-              .dividedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
+              .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal))
               .dividedBy(
                 toBN(needRepay).dividedBy(
-                  toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
+                  toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal),
                 ),
               )
       priceImpact = actualPrice
@@ -471,7 +481,7 @@ export class TradeRouter {
         .abs()
       closeReturns = swapTotalInWei.minus(closeReturns)
       closeReturns = closeReturns.dividedBy(
-        toBN(10).pow(tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+        toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
       )
     }
 
@@ -482,6 +492,7 @@ export class TradeRouter {
       swapFeesRate: swapFeesRate.toString(),
       swapFees: swapFees.toString(),
       priceImpact: priceImpact.toString(),
+      dexCallData,
     }
   }
 
@@ -525,7 +536,14 @@ export class TradeRouter {
   ): Promise<tradeQuoteResult> {
     try {
       const gasUsd = await this.getTokenPriceUsdt(this.nativeToken, this.nativeTokenDecimal, pair.dexData)
-      const preview1InchRes = await this.OneInchQuoter.get1InchQuote(pair, tradeInfo, swapTotalAmountInWei, gasUsd)
+      const preview1InchRes = await this.OneInchQuoter.get1InchQuote(
+        pair,
+        swapTotalAmountInWei,
+        gasUsd,
+        tradeInfo.buyToken,
+        tradeInfo.sellToken,
+        tradeInfo.longToken,
+      )
       const held =
         tradeInfo.longToken != tradeInfo.depositToken
           ? preview1InchRes.toTokenAmount
@@ -539,6 +557,41 @@ export class TradeRouter {
         swapFees: preview1InchRes.swapFees.toString(),
         held: held.toString(),
         minBuyAmount: minBuyAmount.toString(),
+        finalBackUsd: preview1InchRes.finalBackUsd,
+        toTokenAmountInWei: preview1InchRes.toTokenAmountInWei,
+        swapTotalAmountInWei: swapTotalAmountInWei.toString(),
+        gasUsd,
+      }
+    } catch (e) {
+      logger.error('get one inch quote price error', e)
+      throw new Error('get one inch quote price error')
+    }
+  }
+
+  async getOneInchQuoteToClose(
+    pair: Pair,
+    swapTotalAmountInWei: BigNumber,
+    buyToken: string,
+    sellToken: string,
+    longToken: number,
+  ) {
+    try {
+      const gasUsd = await this.getTokenPriceUsdt(this.nativeToken, this.nativeTokenDecimal, pair.dexData)
+      const preview1InchRes = await this.OneInchQuoter.get1InchQuote(
+        pair,
+        swapTotalAmountInWei,
+        gasUsd,
+        buyToken,
+        sellToken,
+        longToken,
+        true,
+      )
+
+      return {
+        dex: '21',
+        token0PriceOfToken1: toBN(1).dividedBy(preview1InchRes.token0toToken1Price).toString(),
+        swapFeesRate: preview1InchRes.swapFeesRate.toString(),
+        swapFees: preview1InchRes.swapFees.toString(),
         finalBackUsd: preview1InchRes.finalBackUsd,
         toTokenAmountInWei: preview1InchRes.toTokenAmountInWei,
         swapTotalAmountInWei: swapTotalAmountInWei.toString(),

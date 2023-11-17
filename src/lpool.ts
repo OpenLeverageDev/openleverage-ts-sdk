@@ -40,11 +40,6 @@ export class LPool {
   }
 
   async borrowBalanceStored(owner: string): Promise<bigint> {
-    console.log(
-      'await this.contract.borrowBalanceStored(owner.toLowerCase())',
-      owner,
-      await this.contract.borrowBalanceStored(owner.toLowerCase()),
-    )
     return await this.contract.borrowBalanceStored(owner.toLowerCase())
   }
 }

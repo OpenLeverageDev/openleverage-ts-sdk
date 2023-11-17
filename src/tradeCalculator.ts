@@ -233,6 +233,7 @@ export class TradeCalculator {
       openPrice,
       liquidationPrice,
       priceDex: dexNames2Name(pair.dexData),
+      onChainPosition,
     }
   }
 

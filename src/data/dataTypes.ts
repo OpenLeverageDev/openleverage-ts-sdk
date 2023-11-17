@@ -64,25 +64,28 @@ export type MarketInfo = {
   priceUpdator: string
 }
 
+// margin trade
+// tradeInfo.longToken == 0 ? pair.token0Address : pair.token1Address
+// tradeInfo.longToken == 0 ? pair.token1Address : pair.token0Address
 export type TradeInfo = {
   depositAmount: string
-  closeAmount: string
   level: number
   slippage: number
   longToken: number
   depositToken: number
   buyToken: string
   sellToken: string
-  isClose: boolean
   depositTokenAddress: string
 }
-// margin trade
-// tradeInfo.longToken == 0 ? pair.token0Address : pair.token1Address
-// tradeInfo.longToken == 0 ? pair.token1Address : pair.token0Address
 
 //  close trade
 // tradeInfo.longToken == 1 ? pair.token0Address : pair.token1Address
 // tradeInfo.longToken == 1 ? pair.token1Address : pair.token0Address
+export type CloseTradeInfo = {
+  closeAmount: string
+  slippage: number
+  share: BigNumber
+}
 
 export type PoolInfo = {
   borrowInterest: string
@@ -120,6 +123,7 @@ export type closeTradeQuoteResult = {
   priceImpact?: string
   dex: string
   swapFees: string
+  dexCallData: string
   swapFeesRate: string
   token0PriceOfToken1: string
   minBuyAmount?: string

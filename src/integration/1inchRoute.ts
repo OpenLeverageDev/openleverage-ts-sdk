@@ -20,7 +20,15 @@ export class OneInchRoute {
     this.rpc = config.rpc
   }
 
-  async get1InchQuote(pair: Pair, tradeInfo: TradeInfo, swapTotalAmountInWei: BigNumber, gasUsd: BigNumber) {
+  async get1InchQuote(
+    pair: Pair,
+    swapTotalAmountInWei: BigNumber,
+    gasUsd: BigNumber,
+    buyToken: string,
+    sellToken: string,
+    longToken: number,
+    isClose?: boolean,
+  ) {
     let leverTotalAmount = toBN(0)
     const result = {
       protocols: [],
@@ -38,8 +46,8 @@ export class OneInchRoute {
     }
     try {
       const queryParams =
-        `src=${encodeURIComponent(tradeInfo.sellToken)}&` +
-        `dst=${encodeURIComponent(tradeInfo.buyToken)}&` +
+        `src=${encodeURIComponent(sellToken)}&` +
+        `dst=${encodeURIComponent(buyToken)}&` +
         `amount=${encodeURIComponent(swapTotalAmountInWei.integerValue(1).toFixed())}&` +
         `includeProtocols=true&includeGas=true&includeTokensInfo=true`
 
@@ -51,18 +59,12 @@ export class OneInchRoute {
       logger.info('one inch response ==== ', data)
       result.toTokenAmountInWei = toBN(data.toAmount)
       let toTokenAmount = toBN(data.toAmount).dividedBy(
-        Math.pow(10, tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+        Math.pow(10, longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
       )
       result.toTokenAmount = toTokenAmount
       // change to usd to check
       leverTotalAmount = toTokenAmount.multipliedBy(
-        tradeInfo.longToken == 0
-          ? tradeInfo.isClose
-            ? pair.token1Usd
-            : pair.token0Usd
-          : tradeInfo.isClose
-            ? pair.token0Usd
-            : pair.token1Usd,
+        longToken == 0 ? (isClose ? pair.token1Usd : pair.token0Usd) : isClose ? pair.token0Usd : pair.token1Usd,
       )
       // change estimatedGas to usd
       const provider = getDefaultProvider(this.rpc)
@@ -96,9 +98,7 @@ export class OneInchRoute {
       const fromTokenAmountVal = swapTotalAmountInWei.dividedBy(Math.pow(10, data.fromToken.decimals))
 
       result.token0toToken1Price =
-        tradeInfo.longToken == 0
-          ? toTokenAmountVal.dividedBy(fromTokenAmountVal)
-          : fromTokenAmountVal.dividedBy(toTokenAmountVal)
+        longToken == 0 ? toTokenAmountVal.dividedBy(fromTokenAmountVal) : fromTokenAmountVal.dividedBy(toTokenAmountVal)
       return result
     } catch (error) {
       logger.error('preview 1Inch router error ==================', error)

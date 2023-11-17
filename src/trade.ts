@@ -1,7 +1,15 @@
 import { Chain } from './data/chains'
 import { TradeCalculator } from './tradeCalculator'
 import { Wallet } from 'ethers'
-import { Pair, TradeInfo, TradePreviewResult, CloseTradePreviewResult, OnChainPosition } from './data/dataTypes'
+import {
+  Pair,
+  TradeInfo,
+  TradePreviewResult,
+  CloseTradePreviewResult,
+  OnChainPosition,
+  CloseTradeInfo,
+  OffChainPositionDetail,
+} from './data/dataTypes'
 import { isUniV2, toBN, logger } from './utils'
 import { TradeRouter } from './tradeRouter'
 
@@ -91,40 +99,47 @@ export class Trade {
 
   async closeTradePreview(
     pair: Pair,
-    tradeInfo: TradeInfo,
-    positionInfo: OnChainPosition,
+    closeTradeInfo: CloseTradeInfo,
+    onChainPosition: OnChainPosition,
+    offChainPositionDetail: OffChainPositionDetail,
   ): Promise<CloseTradePreviewResult | null> {
     let closeRatio = toBN(1)
-    if (toBN(tradeInfo.closeAmount!).comparedTo(toBN(positionInfo.held)) != 0) {
-      closeRatio = toBN(tradeInfo.closeAmount!).dividedBy(toBN(positionInfo.held))
+    if (toBN(closeTradeInfo.closeAmount).comparedTo(toBN(onChainPosition.held)) != 0) {
+      closeRatio = toBN(closeTradeInfo.closeAmount).dividedBy(toBN(onChainPosition.held))
     }
-    const marketInfo = await await this.tradeCalculator.getMarketInfo(pair.marketId)
+    const marketInfo = await this.tradeCalculator.getMarketInfo(pair.marketId)
     if (!marketInfo) {
       return null
     }
-    let discountLeverFees = toBN(tradeInfo.closeAmount!)
+    let discountLeverFees = toBN(closeTradeInfo.closeAmount)
       .multipliedBy(marketInfo.discountLeverFeesRate)
       .dividedBy(toBN(10000))
-    let swapTotalAmount = toBN(tradeInfo.closeAmount!).minus(discountLeverFees)
-    let decimal = tradeInfo.longToken == 0 ? pair.token0Decimal : pair.token1Decimal
+    let swapTotalAmount = toBN(closeTradeInfo.closeAmount!).minus(discountLeverFees)
+    let decimal = offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal
 
-    const txFees = await this.tradeCalculator.getTokenFees(pair.marketId, tradeInfo.buyToken, 0)
-    const buyFees = await this.tradeCalculator.getTokenFees(pair.marketId, tradeInfo.buyToken, 2)
-    const sellFees = await this.tradeCalculator.getTokenFees(pair.marketId, tradeInfo.sellToken, 1)
-    const repayAmount = toBN(positionInfo.borrowed).multipliedBy(closeRatio)
+    const buyToken =
+      offChainPositionDetail.longToken == 0 ? offChainPositionDetail.token0 : offChainPositionDetail.token1
+    const sellToken =
+      offChainPositionDetail.longToken == 0 ? offChainPositionDetail.token1 : offChainPositionDetail.token0
+    const txFees = await this.tradeCalculator.getTokenFees(pair.marketId, buyToken, 0)
+    const buyFees = await this.tradeCalculator.getTokenFees(pair.marketId, buyToken, 2)
+    const sellFees = await this.tradeCalculator.getTokenFees(pair.marketId, sellToken, 1)
+    const repayAmount = toBN(onChainPosition.borrowed).multipliedBy(closeRatio)
     const swapTotalInWei = swapTotalAmount.multipliedBy(toBN(10).pow(decimal))
 
     const routerResult = await this.tradeRouter.getOptimalCloseTradeRouter(
       pair,
-      tradeInfo,
       swapTotalInWei,
       closeRatio,
       sellFees,
       buyFees,
       txFees,
-      discountLeverFees,
-      positionInfo,
+      onChainPosition,
+      offChainPositionDetail,
       repayAmount,
+      buyToken,
+      sellToken,
+      closeTradeInfo,
     )
     logger.debug('routerResult === ', routerResult)
     return {

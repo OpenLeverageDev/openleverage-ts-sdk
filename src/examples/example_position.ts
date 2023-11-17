@@ -35,5 +35,5 @@ logger.info('my position list == ', positionList)
 if (positionList && positionList.length > 0) {
   const firstPosition = positionList[0]
   const position = await marginTradeHelper.getPosition(pair, firstPosition)
-  logger.info(position)
+  logger.info(`position detail == `, position)
 }
