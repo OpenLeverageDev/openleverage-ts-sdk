@@ -1,8 +1,9 @@
-import { formatUnits, getDefaultProvider } from 'ethers'
+import { getDefaultProvider } from 'ethers'
 import { oneInchQuoteInfo, oneInchSwapInfo, Pair, TradeInfo } from '../data/dataTypes'
 import { logger, toBN } from '../utils'
 import { defaultDexGasFee, oneInch } from '../data/chains'
 import BigNumber from 'bignumber.js'
+import fetch from 'node-fetch'
 
 interface OneInchConfig {
   quoteUrl: string
@@ -50,12 +51,12 @@ export class OneInchRoute {
         `dst=${encodeURIComponent(buyToken)}&` +
         `amount=${encodeURIComponent(swapTotalAmountInWei.integerValue(1).toFixed())}&` +
         `includeProtocols=true&includeGas=true&includeTokensInfo=true`
-
+      logger.info('queryParams == ', queryParams)
       const response = await fetch(`${this.quoteUrl}?${queryParams}`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      const data: oneInchQuoteInfo = await response.json()
+      const data: oneInchQuoteInfo = (await response.json()) as oneInchQuoteInfo
       logger.info('one inch response ==== ', data)
       result.toTokenAmountInWei = toBN(data.toAmount)
       let toTokenAmount = toBN(data.toAmount).dividedBy(
@@ -69,7 +70,7 @@ export class OneInchRoute {
       // change estimatedGas to usd
       const provider = getDefaultProvider(this.rpc)
       const feeData = await provider.getFeeData()
-      const gasPrice = feeData.gasPrice ? formatUnits(feeData.gasPrice, 'gwei') : 0
+      const gasPrice = feeData.gasPrice ? feeData.gasPrice.toString() : 0
 
       result.gasFees =
         toBN(data.gas).comparedTo(toBN(defaultDexGasFee)) > 0
@@ -79,14 +80,8 @@ export class OneInchRoute {
               .dividedBy(Math.pow(10, 18))
               .toString()
           : '0'
-      result.gasUsd =
-        toBN(data.gas).comparedTo(toBN(defaultDexGasFee)) > 0
-          ? toBN(data.gas)
-              .minus(toBN(defaultDexGasFee))
-              .multipliedBy(toBN(gasPrice))
-              .dividedBy(Math.pow(10, 18))
-              .multipliedBy(gasUsd)
-          : toBN(0)
+
+      result.gasUsd = toBN(result.gasFees).multipliedBy(gasUsd)
       const estimatedGasUsd = toBN(data.gas)
         .multipliedBy(toBN(gasPrice))
         .dividedBy(Math.pow(10, 18))
@@ -127,7 +122,7 @@ export class OneInchRoute {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      const data: oneInchSwapInfo = await response.json()
+      const data: oneInchSwapInfo = (await response.json()) as oneInchSwapInfo
       logger.info('get swap data from 1inch == ', data)
 
       let contractData = ''

@@ -4,6 +4,7 @@ import { CloseTradeInfo, OffChainPosition, OffChainPositionDetail, Pair, TradeIn
 import { Chain, ChainAddresses, chainInfos, oneInch } from './data/chains'
 import { dexHexDataFormat, dexNames2Hex, logger, toBN } from './utils'
 import { TradeCalculator } from './tradeCalculator'
+import fetch from 'node-fetch'
 // @ts-ignore
 import OplAbiJson from './ABI/OpenLevV1.json'
 // @ts-ignore
@@ -98,7 +99,9 @@ export class MarginTrade {
     held: BigNumber,
     share: BigNumber,
     minOrMaxAmount: BigNumber,
-    dexCallData: string,
+    dex: string,
+    swapTotalAmountInWei: BigNumber,
+    dexCallData?: string,
   ) {
     let closeRatio = toBN(1)
     let closeShare = share
@@ -109,6 +112,25 @@ export class MarginTrade {
       }
       closeShare = share.multipliedBy(closeRatio)
     }
+
+    if (dex === oneInch) {
+      // swap on 1inch
+      const oneInchSwapRes = await this.calculator.getOneInchSwap(
+        {
+          buyToken: offPositionDetail.longToken == 1 ? offPositionDetail.token0 : offPositionDetail.token1,
+          sellToken: offPositionDetail.longToken == 1 ? offPositionDetail.token1 : offPositionDetail.token0,
+          slippage: closeTradeInfo.slippage,
+        } as TradeInfo,
+        swapTotalAmountInWei,
+        this.chainAddresses.oplAddress,
+      )
+      dexCallData = oneInchSwapRes.contractData
+    }
+
+    if (!dexCallData) {
+      throw new Error('get dex contract data error')
+    }
+
     let decimal = offPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal
     let closeHeld = closeShare.multipliedBy(toBN(10).pow(decimal)).toFixed(0)
     logger.info(
@@ -120,13 +142,13 @@ export class MarginTrade {
       dexCallData,
     )
 
-    // return await this.oplContract.closeTrade(
-    //   pair.marketId,
-    //   offPositionDetail.longToken,
-    //   closeHeld,
-    //   minOrMaxAmount.toFixed(0),
-    //   dexCallData,
-    // )
+    return await this.oplContract.closeTrade(
+      pair.marketId,
+      offPositionDetail.longToken,
+      closeHeld,
+      minOrMaxAmount.toFixed(0),
+      dexCallData,
+    )
   }
 
   async getPositionList(marketId: number) {
@@ -135,7 +157,7 @@ export class MarginTrade {
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
-    const data: OffChainPosition = await response.json()
+    const data: OffChainPosition = (await response.json()) as OffChainPosition
     return data.data
   }
 

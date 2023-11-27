@@ -17,15 +17,15 @@ import {
 } from './utils'
 import {
   BorrowToTradeResult,
+  CloseTradeInfo,
   closeTradeQuoteResult,
   MarketInfo,
+  OffChainPositionDetail,
+  OnChainPosition,
   OptimalResult,
   Pair,
-  OnChainPosition,
   TradeInfo,
   tradeQuoteResult,
-  OffChainPositionDetail,
-  CloseTradeInfo,
 } from './data/dataTypes'
 
 interface TradeRouterConfig {
@@ -198,56 +198,57 @@ export class TradeRouter {
           offChainPositionDetail.longToken,
         )
         logger.info('oneInchQuoteResult', oneInchQuoteResult, repayAmount)
-        // const returnsAmount = oneInchQuoteResult.toTokenAmountInWei
-        //   .minus(repayAmount)
-        //   .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
-        // let oneInchCloseReturns = toBN(0)
-        // if (offChainPositionDetail.longToken == 0) {
-        //   oneInchCloseReturns =
-        //     offChainPositionDetail.depositToken == offChainPositionDetail.longToken
-        //       ? returnsAmount.dividedBy(oneInchQuoteResult.token0PriceOfToken1)
-        //       : returnsAmount
-        // } else {
-        //   oneInchCloseReturns =
-        //     offChainPositionDetail.depositToken == offChainPositionDetail.longToken
-        //       ? returnsAmount.multipliedBy(oneInchQuoteResult.token0PriceOfToken1)
-        //       : returnsAmount
-        // }
-        //
-        // const minBuyAmount = oneInchQuoteResult
-        //   .toTokenAmountInWei!.dividedBy(
-        //     Math.pow(10, offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
-        //   )
-        //   .multipliedBy(toBN(1).minus(slippageBN))
-        // const closeReturnsUsd = optimalRouter.closeReturns.multipliedBy(
-        //   offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd,
-        // )
-        // const oneInchCloseReturnsUsd = oneInchCloseReturns
-        //   .multipliedBy(offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd)
-        //   .minus(oneInchQuoteResult.gasUsd!)
-        // logger.info('oneInchCloseReturnsUsd', closeReturnsUsd, oneInchCloseReturnsUsd)
-        // // compared closeReturn usd val
-        // const result = {
-        //   closeReturns: oneInchCloseReturns,
-        //   dex: oneInch,
-        //   token0PriceOfToken1: oneInchQuoteResult.token0PriceOfToken1,
-        //   swapFeesRate: oneInchQuoteResult.swapFeesRate.toString(),
-        //   swapFees: oneInchQuoteResult.swapFees.toString(),
-        //   minBuyAmount: minBuyAmount.toString(),
-        //   overChangeAmount: '',
-        //   overChangeAddr: '',
-        //   overChangeDex: '',
-        //   dexCallData: '',
-        // }
-        // if (
-        //   oneInchCloseReturns.comparedTo(optimalRouter.closeReturns) > 0 &&
-        //   oneInchCloseReturnsUsd.comparedTo(closeReturnsUsd) > 0
-        // ) {
-        //   result.overChangeAmount = oneInchCloseReturns.minus(optimalRouter.closeReturns).toString()
-        //   result.overChangeAddr = offChainPositionDetail.depositToken == 0 ? pair.token0Address : pair.token1Address
-        //   result.overChangeDex = optimalRouter.dex
-        // }
-        // routerResults.set(oneInch, result)
+        const returnsAmount = oneInchQuoteResult.toTokenAmountInWei
+          .minus(repayAmount)
+          .dividedBy(toBN(10).pow(offChainPositionDetail.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
+        let oneInchCloseReturns = toBN(0)
+        if (offChainPositionDetail.longToken == 0) {
+          oneInchCloseReturns =
+            offChainPositionDetail.depositToken == offChainPositionDetail.longToken
+              ? returnsAmount.dividedBy(oneInchQuoteResult.token0PriceOfToken1)
+              : returnsAmount
+        } else {
+          oneInchCloseReturns =
+            offChainPositionDetail.depositToken == offChainPositionDetail.longToken
+              ? returnsAmount.multipliedBy(oneInchQuoteResult.token0PriceOfToken1)
+              : returnsAmount
+        }
+
+        const minBuyAmount = oneInchQuoteResult
+          .toTokenAmountInWei!.dividedBy(
+            Math.pow(10, offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal),
+          )
+          .multipliedBy(toBN(1).minus(slippageBN))
+        const closeReturnsUsd = optimalRouter.closeReturns.multipliedBy(
+          offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd,
+        )
+        const oneInchCloseReturnsUsd = oneInchCloseReturns
+          .multipliedBy(offChainPositionDetail.depositToken == 0 ? pair.token0Usd : pair.token1Usd)
+          .minus(oneInchQuoteResult.gasUsd!)
+        logger.info('oneInchCloseReturnsUsd', closeReturnsUsd, oneInchCloseReturnsUsd)
+        // compared closeReturn usd val
+        const result = {
+          closeReturns: oneInchCloseReturns,
+          dex: oneInch,
+          token0PriceOfToken1: oneInchQuoteResult.token0PriceOfToken1,
+          swapFeesRate: oneInchQuoteResult.swapFeesRate.toString(),
+          swapFees: oneInchQuoteResult.swapFees.toString(),
+          minBuyAmount: minBuyAmount.toString(),
+          overChangeAmount: '',
+          overChangeAddr: '',
+          overChangeDex: '',
+          dexCallData: '',
+          swapTotalAmountInWei: swapTotalInWei.toString(),
+        }
+        if (
+          oneInchCloseReturns.comparedTo(optimalRouter.closeReturns) > 0 &&
+          oneInchCloseReturnsUsd.comparedTo(closeReturnsUsd) > 0
+        ) {
+          result.overChangeAmount = oneInchCloseReturns.minus(optimalRouter.closeReturns).toString()
+          result.overChangeAddr = offChainPositionDetail.depositToken == 0 ? pair.token0Address : pair.token1Address
+          result.overChangeDex = optimalRouter.dex
+        }
+        routerResults.set(oneInch, result)
       } catch (err) {
         logger.error('get 1inch closeTrade preview quote data error == ', err)
       }
@@ -284,7 +285,7 @@ export class TradeRouter {
       .multipliedBy(toBN(10).pow(tradeInfo.longToken == 0 ? pair.token1Decimal : pair.token0Decimal))
       .toFixed(0)
     const isUniClass = isUniV2(currentDex)
-    let actualBuyAmountWei = toBN(0)
+    let actualBuyAmountWei: BigNumber
     if (isUniClass) {
       actualBuyAmountWei = await this.V2quoter.calBuyAmount(
         tradeInfo.buyToken,
@@ -371,7 +372,7 @@ export class TradeRouter {
   ): Promise<closeTradeQuoteResult> {
     const dexCallData = dexHexDataFormat(dexNames2Hex(currentDex))
     const swapFeesRate = toBN(dexNames2Fee(currentDex, this.chain)).dividedBy(toBN(100))
-    let swapFees = toBN(0)
+    let swapFees: BigNumber
     const token0PriceOfToken1 = await this.getTokenQuotePrice(
       pair.token0Address,
       pair.token1Address,
@@ -382,9 +383,9 @@ export class TradeRouter {
     const repayAmount = toBN(onChainPosition.borrowed).multipliedBy(closeRatio)
     const isUniClass = isUniV2(currentDex)
 
-    let closeReturns = toBN(0)
-    let actualPrice = toBN(0)
-    let priceImpact = toBN(0)
+    let closeReturns: BigNumber
+    let actualPrice: BigNumber
+    let priceImpact: BigNumber
 
     if (offChainPositionDetail.longToken !== offChainPositionDetail.depositToken) {
       //max sell
@@ -493,6 +494,7 @@ export class TradeRouter {
       swapFees: swapFees.toString(),
       priceImpact: priceImpact.toString(),
       dexCallData,
+      swapTotalAmountInWei: swapTotalInWei.toString(),
     }
   }
 
@@ -513,10 +515,9 @@ export class TradeRouter {
     const defaultDexCallData = dexHexDataFormat(dexNames2Hex(defaultDexNames))
     try {
       const prices: string[] = await this.V2quoter.getPrice(dexToken, quoteToken, defaultDexCallData)
-      const price = toBN(prices[0])
+      return toBN(prices[0])
         .multipliedBy(toBN(10).pow(toBN(dexTokenDecimal).minus(toBN(quoteTokenDecimal))))
         .dividedBy(toBN(10).pow(prices[1]))
-      return price
     } catch (e) {
       logger.error(`get token ${dexToken} quote token ${quoteToken} price err`, e)
       return toBN(0)
@@ -589,13 +590,13 @@ export class TradeRouter {
 
       return {
         dex: '21',
-        token0PriceOfToken1: toBN(1).dividedBy(preview1InchRes.token0toToken1Price).toString(),
+        token0PriceOfToken1: preview1InchRes.token0toToken1Price.toString(),
         swapFeesRate: preview1InchRes.swapFeesRate.toString(),
         swapFees: preview1InchRes.swapFees.toString(),
         finalBackUsd: preview1InchRes.finalBackUsd,
         toTokenAmountInWei: preview1InchRes.toTokenAmountInWei,
         swapTotalAmountInWei: swapTotalAmountInWei.toString(),
-        gasUsd,
+        gasUsd: preview1InchRes.gasUsd,
       }
     } catch (e) {
       logger.error('get one inch quote price error', e)

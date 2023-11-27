@@ -118,9 +118,9 @@ export class Trade {
     let decimal = offChainPositionDetail.longToken == 0 ? pair.token0Decimal : pair.token1Decimal
 
     const buyToken =
-      offChainPositionDetail.longToken == 0 ? offChainPositionDetail.token0 : offChainPositionDetail.token1
+      offChainPositionDetail.longToken == 1 ? offChainPositionDetail.token0 : offChainPositionDetail.token1
     const sellToken =
-      offChainPositionDetail.longToken == 0 ? offChainPositionDetail.token1 : offChainPositionDetail.token0
+      offChainPositionDetail.longToken == 1 ? offChainPositionDetail.token1 : offChainPositionDetail.token0
     const txFees = await this.tradeCalculator.getTokenFees(pair.marketId, buyToken, 0)
     const buyFees = await this.tradeCalculator.getTokenFees(pair.marketId, buyToken, 2)
     const sellFees = await this.tradeCalculator.getTokenFees(pair.marketId, sellToken, 1)

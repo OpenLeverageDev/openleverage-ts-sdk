@@ -56,7 +56,7 @@ if (positionList && positionList.length > 0) {
     firstPosition,
   )
   if (closeTradePreviewRes) {
-    const closeTradeQuoteResult = closeTradePreviewRes.dexQuoteResultMap.get('21' || closeTradePreviewRes.dex)
+    const closeTradeQuoteResult = closeTradePreviewRes.dexQuoteResultMap.get(closeTradePreviewRes.dex)
     if (closeTradeQuoteResult) {
       logger.info('closeTradeQuoteResult == ', closeTradeQuoteResult)
       const closeReturns = closeTradeQuoteResult.closeReturns.multipliedBy(
@@ -70,6 +70,8 @@ if (positionList && positionList.length > 0) {
         position.held,
         position.share,
         closeReturns,
+        closeTradePreviewRes.dex,
+        toBN(closeTradeQuoteResult.swapTotalAmountInWei),
         closeTradeQuoteResult.dexCallData,
       )
     }

@@ -130,6 +130,7 @@ export type closeTradeQuoteResult = {
   overChangeAmount?: string
   overChangeAddr?: string
   overChangeDex?: string
+  swapTotalAmountInWei: string
 }
 
 export type oneInchQuoteToken = {
